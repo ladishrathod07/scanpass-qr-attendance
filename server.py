@@ -58,9 +58,34 @@ app.add_middleware(
 )
 
 
+# ----------------- Path Normalization Middleware for Vercel -----------------
+@app.middleware("http")
+async def normalize_vercel_paths(request, call_next):
+    """
+    Normalizes path rewrites from Vercel serverless proxy so routes match correctly.
+    """
+    path = request.scope.get("path", "")
+    if path in ["/api", "/api/", "/api/index", "/api/index/", "/api/index.py", "/api/index.py/"]:
+        request.scope["path"] = "/"
+        request.scope["raw_path"] = b"/"
+    elif path.startswith("/api/index.py/"):
+        new_path = path[len("/api/index.py"):]
+        request.scope["path"] = new_path
+        request.scope["raw_path"] = new_path.encode()
+    elif path.startswith("/api/index/"):
+        new_path = path[len("/api/index"):]
+        request.scope["path"] = new_path
+        request.scope["raw_path"] = new_path.encode()
+    return await call_next(request)
+
+
 # ----------------- Frontend & Static Routes -----------------
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index.html", response_class=HTMLResponse)
+@app.get("/api", response_class=HTMLResponse)
+@app.get("/api/", response_class=HTMLResponse)
+@app.get("/api/index", response_class=HTMLResponse)
+@app.get("/api/index.py", response_class=HTMLResponse)
 async def serve_index():
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.exists(index_path):
