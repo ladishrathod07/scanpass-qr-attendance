@@ -42,13 +42,37 @@ def generate_qr_image(data_payload: str, box_size: int = 10, border: int = 3) ->
     return img
 
 
+import base64
+
+
+def get_card_bytes(img: Image.Image, format: str = "PNG") -> bytes:
+    buf = io.BytesIO()
+    img.save(buf, format=format)
+    return buf.getvalue()
+
+
+def get_card_base64(img: Image.Image) -> str:
+    img_bytes = get_card_bytes(img)
+    return "data:image/png;base64," + base64.b64encode(img_bytes).decode("utf-8")
+
+
 def save_student_qr(roll_no: str) -> Tuple[str, Image.Image]:
     """Generates and saves a standalone QR code image to static/qr_codes/<roll_no>.png."""
     roll_no = roll_no.strip().upper()
     img = generate_qr_image(roll_no, box_size=10, border=3)
     safe_filename = "".join(c if c.isalnum() or c in "-_" else "_" for c in roll_no)
     file_path = os.path.join(QR_DIR, f"{safe_filename}.png")
-    img.save(file_path, "PNG")
+    try:
+        os.makedirs(QR_DIR, exist_ok=True)
+        img.save(file_path, "PNG")
+    except Exception:
+        tmp_dir = os.path.join(tempfile.gettempdir(), "static", "qr_codes")
+        os.makedirs(tmp_dir, exist_ok=True)
+        file_path = os.path.join(tmp_dir, f"{safe_filename}.png")
+        try:
+            img.save(file_path, "PNG")
+        except Exception:
+            pass
     return file_path, img
 
 
@@ -168,7 +192,17 @@ def generate_student_id_card(
     # Save to disk
     safe_filename = "".join(c if c.isalnum() or c in "-_" else "_" for c in roll_no)
     card_path = os.path.join(CARD_DIR, f"{safe_filename}_card.png")
-    card.save(card_path, "PNG")
+    try:
+        os.makedirs(CARD_DIR, exist_ok=True)
+        card.save(card_path, "PNG")
+    except Exception:
+        tmp_dir = os.path.join(tempfile.gettempdir(), "static", "id_cards")
+        os.makedirs(tmp_dir, exist_ok=True)
+        card_path = os.path.join(tmp_dir, f"{safe_filename}_card.png")
+        try:
+            card.save(card_path, "PNG")
+        except Exception:
+            pass
 
     # Also save standalone QR code
     save_student_qr(roll_no)

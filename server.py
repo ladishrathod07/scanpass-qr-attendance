@@ -58,27 +58,6 @@ app.add_middleware(
 )
 
 
-# ----------------- Path Normalization Middleware for Vercel -----------------
-@app.middleware("http")
-async def normalize_vercel_paths(request, call_next):
-    """
-    Normalizes path rewrites from Vercel serverless proxy so routes match correctly.
-    """
-    path = request.scope.get("path", "")
-    if path in ["/api", "/api/", "/api/index", "/api/index/", "/api/index.py", "/api/index.py/"]:
-        request.scope["path"] = "/"
-        request.scope["raw_path"] = b"/"
-    elif path.startswith("/api/index.py/"):
-        new_path = path[len("/api/index.py"):]
-        request.scope["path"] = new_path
-        request.scope["raw_path"] = new_path.encode()
-    elif path.startswith("/api/index/"):
-        new_path = path[len("/api/index"):]
-        request.scope["path"] = new_path
-        request.scope["raw_path"] = new_path.encode()
-    return await call_next(request)
-
-
 # ----------------- Frontend & Static Routes -----------------
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index.html", response_class=HTMLResponse)
@@ -98,7 +77,12 @@ async def serve_index():
 async def serve_frontend_file(file_path: str):
     fpath = os.path.join(FRONTEND_DIR, file_path)
     if os.path.exists(fpath):
-        return FileResponse(fpath)
+        media_type = "text/plain"
+        if fpath.endswith(".css"): media_type = "text/css"
+        elif fpath.endswith(".js"): media_type = "application/javascript"
+        elif fpath.endswith(".html"): media_type = "text/html"
+        with open(fpath, "rb") as f:
+            return Response(content=f.read(), media_type=media_type)
     raise HTTPException(status_code=404, detail="Frontend file not found")
 
 
@@ -107,12 +91,14 @@ async def serve_static_file(file_path: str):
     # Check /tmp/static first (newly generated files in serverless environment)
     tmp_path = os.path.join(TMP_STATIC_DIR, file_path)
     if os.path.exists(tmp_path):
-        return FileResponse(tmp_path)
+        with open(tmp_path, "rb") as f:
+            return Response(content=f.read(), media_type="image/png")
     
     # Check project static folder
     repo_path = os.path.join(STATIC_DIR, file_path)
     if os.path.exists(repo_path):
-        return FileResponse(repo_path)
+        with open(repo_path, "rb") as f:
+            return Response(content=f.read(), media_type="image/png")
     
     raise HTTPException(status_code=404, detail="Static asset not found")
 
@@ -174,7 +160,7 @@ async def register_student(student: StudentCreate):
     if not success:
         raise HTTPException(status_code=400, detail=msg)
     
-    card_path, _ = qrg.generate_student_id_card(
+    card_path, card_img = qrg.generate_student_id_card(
         student.roll_no,
         student.full_name,
         student.branch,
@@ -183,13 +169,65 @@ async def register_student(student: StudentCreate):
     db.update_student_qr_path(student.roll_no, card_path)
     
     saved_std = db.get_student(student.roll_no)
+    card_b64 = qrg.get_card_base64(card_img)
     return {
         "success": True,
         "message": msg,
         "student": saved_std,
-        "card_url": f"/static/id_cards/{student.roll_no}_card.png",
-        "qr_url": f"/static/qr_codes/{student.roll_no}.png"
+        "card_base64": card_b64,
+        "card_url": f"/api/students/{student.roll_no}/card",
+        "qr_url": f"/api/students/{student.roll_no}/qr"
     }
+
+
+@app.get("/api/students/{roll_no}/card")
+@app.get("/students/{roll_no}/card")
+async def get_student_card_image(roll_no: str):
+    """Dynamically serves or generates student ID card image."""
+    std = db.get_student(roll_no)
+    if not std:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    safe_fn = "".join(c if c.isalnum() or c in "-_" else "_" for c in roll_no)
+    possible_paths = [
+        os.path.join(TMP_STATIC_DIR, "id_cards", f"{safe_fn}_card.png"),
+        os.path.join(STATIC_DIR, "id_cards", f"{safe_fn}_card.png"),
+        os.path.join(BASE_DIR, "public", "static", "id_cards", f"{safe_fn}_card.png"),
+    ]
+    for p in possible_paths:
+        if os.path.exists(p):
+            with open(p, "rb") as f:
+                return Response(content=f.read(), media_type="image/png")
+    
+    # Generate on the fly in memory if file is not found
+    _, card_img = qrg.generate_student_id_card(
+        std["roll_no"],
+        std["full_name"],
+        std["branch"],
+        std["semester"]
+    )
+    img_bytes = qrg.get_card_bytes(card_img)
+    return Response(content=img_bytes, media_type="image/png")
+
+
+@app.get("/api/students/{roll_no}/qr")
+@app.get("/students/{roll_no}/qr")
+async def get_student_qr_image(roll_no: str):
+    """Dynamically serves or generates student QR code image."""
+    safe_fn = "".join(c if c.isalnum() or c in "-_" else "_" for c in roll_no)
+    possible_paths = [
+        os.path.join(TMP_STATIC_DIR, "qr_codes", f"{safe_fn}.png"),
+        os.path.join(STATIC_DIR, "qr_codes", f"{safe_fn}.png"),
+        os.path.join(BASE_DIR, "public", "static", "qr_codes", f"{safe_fn}.png"),
+    ]
+    for p in possible_paths:
+        if os.path.exists(p):
+            with open(p, "rb") as f:
+                return Response(content=f.read(), media_type="image/png")
+    
+    qr_img = qrg.generate_qr_image(roll_no)
+    img_bytes = qrg.get_card_bytes(qr_img)
+    return Response(content=img_bytes, media_type="image/png")
 
 
 @app.delete("/api/students/{roll_no}")

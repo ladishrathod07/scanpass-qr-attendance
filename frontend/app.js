@@ -522,14 +522,15 @@ class SmartQRApp {
           const data = await res.json();
 
           if (res.ok && data.success) {
-            // Render ID Pass Preview
+            // Render ID Pass Preview with base64 data URI for instant rendering
+            const imgSrc = data.card_base64 || data.card_url;
             const preview = document.getElementById('id-pass-preview');
             preview.innerHTML = `
               <div class="id-pass-card" style="max-width: 420px; margin: 0 auto;">
-                <img src="${data.card_url}?t=${Date.now()}" alt="ID Pass">
+                <img src="${imgSrc}" alt="ID Pass">
                 <div class="id-pass-actions">
                   <span style="font-size: 12px; color: #fff; font-weight: 600;">${roll}</span>
-                  <a href="${data.card_url}" download="${roll}_id_card.png" class="btn btn-primary btn-sm">
+                  <a href="${imgSrc}" download="${roll}_id_card.png" class="btn btn-primary btn-sm">
                     📥 Download Pass
                   </a>
                 </div>
@@ -602,14 +603,14 @@ class SmartQRApp {
 
       grid.innerHTML = students.map(s => `
         <div class="id-pass-card student-card-item">
-          <img src="/static/id_cards/${s.roll_no}_card.png" onerror="this.src='/static/qr_codes/${s.roll_no}.png'" alt="${s.roll_no}">
+          <img src="/api/students/${s.roll_no}/card" onerror="this.onerror=null; this.src='/static/id_cards/${s.roll_no}_card.png'" alt="${s.roll_no}">
           <div class="id-pass-actions">
             <div>
               <div style="font-size: 13px; font-weight: 700; color: #fff;">${s.full_name}</div>
               <div style="font-size: 11px; color: var(--accent-cyan); font-family: var(--font-mono);">${s.roll_no}</div>
             </div>
             <div style="display: flex; gap: 6px;">
-              <a href="/static/id_cards/${s.roll_no}_card.png" download="${s.roll_no}_pass.png" class="btn btn-secondary btn-sm" title="Download ID Pass">
+              <a href="/api/students/${s.roll_no}/card" download="${s.roll_no}_pass.png" class="btn btn-secondary btn-sm" title="Download ID Pass">
                 📥
               </a>
               <button class="btn btn-danger btn-sm btn-delete-student" data-roll="${s.roll_no}" title="Delete Student">
