@@ -133,6 +133,7 @@ class AttendanceScan(BaseModel):
 # ----------------- REST API Endpoints -----------------
 
 @app.get("/api/stats")
+@app.get("/stats")
 async def get_system_stats(target_date: Optional[str] = None):
     """Returns real-time KPI metrics for dashboard."""
     if not target_date:
@@ -153,6 +154,7 @@ async def get_system_stats(target_date: Optional[str] = None):
 
 
 @app.get("/api/students")
+@app.get("/students")
 async def list_students():
     """Returns all enrolled students."""
     students = db.get_all_students()
@@ -160,6 +162,7 @@ async def list_students():
 
 
 @app.post("/api/students")
+@app.post("/students")
 async def register_student(student: StudentCreate):
     """Registers a new student and generates high-contrast QR pass."""
     success, msg = db.add_student(
@@ -190,6 +193,7 @@ async def register_student(student: StudentCreate):
 
 
 @app.delete("/api/students/{roll_no}")
+@app.delete("/students/{roll_no}")
 async def remove_student(roll_no: str):
     """Deletes student and associated records."""
     success, msg = db.delete_student(roll_no)
@@ -199,6 +203,7 @@ async def remove_student(roll_no: str):
 
 
 @app.post("/api/students/seed")
+@app.post("/students/seed")
 async def seed_students():
     """Seeds sample students with ready-to-use ID passes."""
     c = db.seed_sample_students()
@@ -210,6 +215,7 @@ async def seed_students():
 
 
 @app.post("/api/attendance/scan")
+@app.post("/attendance/scan")
 async def process_attendance_scan(scan: AttendanceScan):
     """
     Core DBMS Attendance Verification:
@@ -225,6 +231,7 @@ async def process_attendance_scan(scan: AttendanceScan):
 
 
 @app.get("/api/attendance/logs")
+@app.get("/attendance/logs")
 async def get_logs(
     date: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
@@ -242,6 +249,7 @@ async def get_logs(
 
 
 @app.get("/api/attendance/summary")
+@app.get("/attendance/summary")
 async def get_summary(date: Optional[str] = Query(None)):
     """Returns present vs absent breakdown and metrics."""
     if not date:
@@ -250,6 +258,7 @@ async def get_summary(date: Optional[str] = Query(None)):
 
 
 @app.post("/api/attendance/decode-image")
+@app.post("/attendance/decode-image")
 async def decode_image_file(file: UploadFile = File(...)):
     """
     Decodes QR code from an uploaded image using OpenCV QRCodeDetector server-side.
@@ -286,6 +295,7 @@ async def decode_image_file(file: UploadFile = File(...)):
 
 
 @app.get("/api/attendance/export/csv")
+@app.get("/attendance/export/csv")
 async def export_attendance_csv(date: Optional[str] = Query(None)):
     """Exports attendance logs as a CSV file."""
     if not date:
@@ -306,6 +316,7 @@ async def export_attendance_csv(date: Optional[str] = Query(None)):
 
 
 @app.get("/api/attendance/export/excel")
+@app.get("/attendance/export/excel")
 async def export_attendance_excel(date: Optional[str] = Query(None)):
     """Exports attendance logs as an Excel (.xlsx) file."""
     if not date:

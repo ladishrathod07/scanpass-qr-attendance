@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart QR Student Attendance & Library Entry System</title>
+  <link rel="stylesheet" href="/frontend/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎓</text></svg>">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">🎓</div>
+        <div class="brand-info">
+          <h2>Smart QR Portal</h2>
+          <span>Contactless DBMS</span>
+        </div>
+      </div>
+
+      <ul class="nav-menu">
+        <li class="nav-item active" data-tab="tab-scanner" id="nav-scanner">
+          <span class="icon">📸</span>
+          <span>Live QR Scanner</span>
+        </li>
+        <li class="nav-item" data-tab="tab-registration" id="nav-registration">
+          <span class="icon">🪪</span>
+          <span>Register & ID Cards</span>
+        </li>
+        <li class="nav-item" data-tab="tab-dashboard" id="nav-dashboard">
+          <span class="icon">📊</span>
+          <span>Attendance Dashboard</span>
+        </li>
+        <li class="nav-item" data-tab="tab-library" id="nav-library">
+          <span class="icon">📚</span>
+          <span>Library Turnstile</span>
+        </li>
+        <li class="nav-item" data-tab="tab-viva" id="nav-viva">
+          <span class="icon">💡</span>
+          <span>Viva Presentation Hub</span>
+        </li>
+      </ul>
+
+      <div class="sidebar-footer">
+        <div class="status-badge">
+          <span class="status-dot"></span>
+          <span>SQLite DB • OpenCV Connected</span>
+        </div>
+        <p style="font-size: 11px; color: var(--text-dim); margin-top: 8px;">Version 2.0 • Microproject</p>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Hero Banner -->
+      <header class="hero-header">
+        <h1>Smart QR-Based Student Attendance & Library Entry System</h1>
+        <p>Automated, sub-second contactless verification powered by 2D Quick Response matrices, Computer Vision, and SQLite Relational DBMS.</p>
+        <div class="hero-chips">
+          <span class="chip">⚡ Sub-Second Scan</span>
+          <span class="chip">🛡️ Duplicate Proxy Prevention</span>
+          <span class="chip">📊 1-Click CSV & Excel Export</span>
+          <span class="chip">💾 ACID Relational Tables</span>
+        </div>
+      </header>
+
+      <!-- KPI Summary Cards -->
+      <section class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Enrolled Students</div>
+          <div class="kpi-value" id="kpi-enrolled">0</div>
+          <div class="kpi-sub">Master Directory</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Present Today</div>
+          <div class="kpi-value" id="kpi-present" style="color: var(--accent-emerald);">0</div>
+          <div class="kpi-sub" style="color: var(--accent-emerald);">Verified Check-ins</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Absent Today</div>
+          <div class="kpi-value" id="kpi-absent" style="color: var(--accent-rose);">0</div>
+          <div class="kpi-sub" style="color: var(--accent-rose);">Pending Scans</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Attendance Rate</div>
+          <div class="kpi-value" id="kpi-rate" style="color: var(--accent-cyan);">0%</div>
+          <div class="kpi-sub">Today's Session</div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 1: LIVE QR SCANNER ================= -->
+      <section id="tab-scanner" class="tab-pane active">
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2 class="panel-title"><span>📸</span> Real-Time Webcam QR Scanner & Validation</h2>
+            <div style="display: flex; gap: 12px; align-items: center;">
+              <label style="font-size: 13px; color: var(--text-muted); font-weight: 600;">Mode:</label>
+              <select id="scan-entry-type" class="form-control" style="width: 220px; padding: 7px 12px;">
+                <option value="Classroom Attendance">Classroom Attendance</option>
+                <option value="Library Gate Entry">Library Gate Entry</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="scanner-container">
+            <!-- Left: Camera Viewport -->
+            <div>
+              <div class="camera-box" id="camera-viewport">
+                <video id="webcam" playsinline autoplay muted></video>
+                <canvas id="qr-canvas"></canvas>
+                <!-- Reticle with animated laser -->
+                <div class="scan-reticle">
+                  <div class="scan-laser"></div>
+                  <div class="corner-bracket tl"></div>
+                  <div class="corner-bracket tr"></div>
+                  <div class="corner-bracket bl"></div>
+                  <div class="corner-bracket br"></div>
+                </div>
+              </div>
+
+              <!-- Camera Controls -->
+              <div class="camera-controls">
+                <button id="btn-toggle-camera" class="btn btn-primary">
+                  <span>📷</span> Stop Camera
+                </button>
+                <button id="btn-switch-camera" class="btn btn-secondary">
+                  <span>🔄</span> Switch Camera
+                </button>
+                <button id="btn-sound-toggle" class="btn btn-secondary">
+                  <span>🔊</span> Sound: On
+                </button>
+              </div>
+
+              <!-- File Drag & Drop / Image Test -->
+              <div style="margin-top: 22px;">
+                <div class="dropzone" id="qr-dropzone">
+                  <input type="file" id="qr-file-input" accept="image/*" style="display: none;">
+                  <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 6px;">
+                    <b>Drag & drop student ID pass image here</b> or click to test without webcam
+                  </p>
+                  <span style="font-size: 12px; color: var(--accent-cyan);">Supports .PNG, .JPG, .JPEG</span>
+                </div>
+              </div>
+
+              <!-- One Click Viva Simulation Buttons -->
+              <div style="margin-top: 20px; background: rgba(255,255,255,0.03); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+                <p style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 10px;">
+                  ⚡ Quick Demo Simulation (Instant Viva Evaluation):
+                </p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;" id="demo-student-chips">
+                  <!-- Injected via JavaScript -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Real-time Scan Result HUD -->
+            <div>
+              <h3 style="font-size: 16px; font-weight: 700; color: var(--text-muted); margin-bottom: 12px;">Live Verification Feedback</h3>
+              <div class="hud-card" id="hud-display">
+                <div class="hud-placeholder">
+                  <div class="big-icon">🎯</div>
+                  <h4>Ready to Scan</h4>
+                  <p style="font-size: 13px; margin-top: 6px;">Present student QR card in front of camera lens.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 2: STUDENT REGISTRATION & ID CARDS ================= -->
+      <section id="tab-registration" class="tab-pane">
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2 class="panel-title"><span>🪪</span> Student Registration & Printable ID Card Pass</h2>
+            <button id="btn-seed-sample" class="btn btn-secondary btn-sm">
+              <span>➕</span> Seed 6 Sample Students
+            </button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;" id="reg-container">
+            <!-- Registration Form -->
+            <div>
+              <form id="form-register-student">
+                <div class="form-group">
+                  <label class="form-label" for="reg-roll">Roll Number (Unique Primary Key)</label>
+                  <input type="text" id="reg-roll" class="form-control" placeholder="e.g. CSE-2026-050" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="reg-name">Student Full Name</label>
+                  <input type="text" id="reg-name" class="form-control" placeholder="e.g. Rahul Sharma" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="reg-branch">Department / Branch</label>
+                  <select id="reg-branch" class="form-control" required>
+                    <option value="Computer Science">Computer Science</option>
+                    <option value="Information Technology">Information Technology</option>
+                    <option value="AI & Data Science">AI & Data Science</option>
+                    <option value="Electronics & Comm">Electronics & Comm</option>
+                    <option value="Mechanical Engg">Mechanical Engg</option>
+                    <option value="Civil Engg">Civil Engg</option>
+                    <option value="Electrical Engg">Electrical Engg</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="reg-sem">Academic Semester</label>
+                  <select id="reg-sem" class="form-control" required>
+                    <option value="Sem 1">Sem 1</option>
+                    <option value="Sem 2">Sem 2</option>
+                    <option value="Sem 3">Sem 3</option>
+                    <option value="Sem 4">Sem 4</option>
+                    <option value="Sem 5">Sem 5</option>
+                    <option value="Sem 6" selected>Sem 6</option>
+                    <option value="Sem 7">Sem 7</option>
+                    <option value="Sem 8">Sem 8</option>
+                  </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                  <span>⚡</span> Register & Generate ID Pass
+                </button>
+              </form>
+            </div>
+
+            <!-- Generated ID Pass Preview -->
+            <div>
+              <h3 style="font-size: 15px; font-weight: 600; color: var(--text-muted); margin-bottom: 12px;">Generated Identity Pass Preview</h3>
+              <div id="id-pass-preview" style="text-align: center; padding: 20px; background: rgba(0,0,0,0.2); border-radius: var(--radius-md); border: 1px dashed var(--border-medium); min-height: 280px; display: flex; align-items: center; justify-content: center;">
+                <p style="color: var(--text-dim); font-size: 13px;">Fill the form and submit to generate high-res ID card & QR pass.</p>
+              </div>
+            </div>
+          </div>
+
+          <hr style="border: 0; border-top: 1px solid var(--border-subtle); margin: 30px 0;">
+
+          <!-- Registered Students Directory -->
+          <div class="panel-header">
+            <h3 class="panel-title"><span>👥</span> Registered Students Directory (<span id="students-count-badge">0</span>)</h3>
+            <input type="text" id="search-student-input" class="form-control" placeholder="Search by name or roll..." style="width: 250px; padding: 6px 14px;">
+          </div>
+          <div class="student-grid" id="student-cards-grid">
+            <!-- Student ID Cards Injected Here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 3: ATTENDANCE DASHBOARD & REPORTS ================= -->
+      <section id="tab-dashboard" class="tab-pane">
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2 class="panel-title"><span>📊</span> Attendance Audit Logs & Relational Analytics</h2>
+            <div style="display: flex; gap: 10px;">
+              <button id="btn-export-csv" class="btn btn-primary btn-sm">
+                <span>📥</span> Export CSV
+              </button>
+              <button id="btn-export-excel" class="btn btn-secondary btn-sm">
+                <span>📊</span> Export Excel (.xlsx)
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter Controls -->
+          <div class="filter-bar">
+            <div>
+              <label class="form-label" for="filter-date">Select Date</label>
+              <input type="date" id="filter-date" class="form-control">
+            </div>
+            <div>
+              <label class="form-label" for="filter-branch">Department</label>
+              <select id="filter-branch" class="form-control">
+                <option value="All Branches">All Departments</option>
+                <option value="Computer Science">Computer Science</option>
+                <option value="Information Technology">Information Technology</option>
+                <option value="AI & Data Science">AI & Data Science</option>
+                <option value="Electronics & Comm">Electronics & Comm</option>
+                <option value="Mechanical Engg">Mechanical Engg</option>
+                <option value="Civil Engg">Civil Engg</option>
+                <option value="Electrical Engg">Electrical Engg</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="filter-sem">Semester</label>
+              <select id="filter-sem" class="form-control">
+                <option value="All Semesters">All Semesters</option>
+                <option value="Sem 1">Sem 1</option>
+                <option value="Sem 2">Sem 2</option>
+                <option value="Sem 3">Sem 3</option>
+                <option value="Sem 4">Sem 4</option>
+                <option value="Sem 5">Sem 5</option>
+                <option value="Sem 6">Sem 6</option>
+                <option value="Sem 7">Sem 7</option>
+                <option value="Sem 8">Sem 8</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="filter-type">Session Context</label>
+              <select id="filter-type" class="form-control">
+                <option value="All Entry Types">All Session Types</option>
+                <option value="Classroom Attendance">Classroom Attendance</option>
+                <option value="Library Gate Entry">Library Gate Entry</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Sub Tabs: Logs vs Present/Absent Roster -->
+          <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px;">
+            <button class="btn btn-secondary btn-sm active" id="subtab-btn-logs">📋 Attendance Audit Logs</button>
+            <button class="btn btn-secondary btn-sm" id="subtab-btn-roster">👥 Present vs Absent Roster</button>
+          </div>
+
+          <!-- Logs Table Container -->
+          <div id="subtab-view-logs">
+            <div class="table-responsive">
+              <table class="custom-table" id="attendance-table">
+                <thead>
+                  <tr>
+                    <th>Log ID</th>
+                    <th>Roll Number</th>
+                    <th>Student Name</th>
+                    <th>Department</th>
+                    <th>Semester</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th>Session</th>
+                  </tr>
+                </thead>
+                <tbody id="attendance-tbody">
+                  <!-- Rows injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Present vs Absent Roster Container -->
+          <div id="subtab-view-roster" style="display: none;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+              <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: var(--radius-md); padding: 18px;">
+                <h4 style="color: var(--accent-emerald); margin-bottom: 12px; font-size: 16px;">
+                  ✅ Present Students (<span id="roster-present-count">0</span>)
+                </h4>
+                <div id="roster-present-list" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Injected via JS -->
+                </div>
+              </div>
+              <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: var(--radius-md); padding: 18px;">
+                <h4 style="color: var(--accent-rose); margin-bottom: 12px; font-size: 16px;">
+                  ❌ Absent Students (<span id="roster-absent-count">0</span>)
+                </h4>
+                <div id="roster-absent-list" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Injected via JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 4: LIBRARY ENTRY TURNSTILE ================= -->
+      <section id="tab-library" class="tab-pane">
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2 class="panel-title"><span>📚</span> Automated Library Circulation & Turnstile Gate</h2>
+            <span class="badge-pill pill-library">Circulation Active</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 25px;">
+            <div class="kpi-card">
+              <div class="kpi-label">Today's Library Visits</div>
+              <div class="kpi-value" id="lib-total-visits" style="color: var(--accent-indigo);">0</div>
+              <div class="kpi-sub">Total Gate Check-ins</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Unique Readers</div>
+              <div class="kpi-value" id="lib-unique-readers" style="color: var(--accent-cyan);">0</div>
+              <div class="kpi-sub">Distinct Students</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Hall Occupancy</div>
+              <div class="kpi-value" style="color: var(--accent-emerald);">NORMAL</div>
+              <div class="kpi-sub">Study Space Available</div>
+            </div>
+          </div>
+
+          <div class="panel-header">
+            <h3 class="panel-title" style="font-size: 16px;">Recent Library Turnstile Entries</h3>
+          </div>
+          <div class="table-responsive">
+            <table class="custom-table" id="library-table">
+              <thead>
+                <tr>
+                  <th>Entry ID</th>
+                  <th>Roll Number</th>
+                  <th>Student Name</th>
+                  <th>Department</th>
+                  <th>Timestamp</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="library-tbody">
+                <!-- Rows injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 5: VIVA PRESENTATION HUB ================= -->
+      <section id="tab-viva" class="tab-pane">
+        <div class="glass-panel">
+          <div class="panel-header">
+            <h2 class="panel-title"><span>🎓</span> Viva & Project Presentation Master Cheatsheet</h2>
+            <span class="badge-pill pill-present">Examiner Ready</span>
+          </div>
+
+          <h3 style="font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 14px;">1. 4-Step System Workflow (Input → Process → Database → Output)</h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 30px;">
+            <div class="viva-card" style="border-left-color: #00f2fe;">
+              <div class="viva-card-q">Step 1: QR ID Generation</div>
+              <div class="viva-card-a">
+                <b>Encoding:</b> Student details convert into a 2D matrix barcode using Python's <code>qrcode</code> with Reed-Solomon Error Correction Level H (30% damage recovery).
+              </div>
+            </div>
+            <div class="viva-card" style="border-left-color: #38bdf8;">
+              <div class="viva-card-q">Step 2: Real-Time Scanning</div>
+              <div class="viva-card-a">
+                <b>Decoding:</b> OpenCV detects the three square <b>Finder Patterns (1:1:3:1:1 ratio)</b> to compute perspective warp and extract the string payload instantly.
+              </div>
+            </div>
+            <div class="viva-card" style="border-left-color: #10b981;">
+              <div class="viva-card-q">Step 3: DBMS Validation</div>
+              <div class="viva-card-a">
+                <b>Composite SQL Check:</b> Runs <code>SELECT * WHERE roll_no = ? AND scan_date = CURRENT_DATE</code> to block duplicate proxy scans.
+              </div>
+            </div>
+            <div class="viva-card" style="border-left-color: #f59e0b;">
+              <div class="viva-card-q">Step 4: Output & Reports</div>
+              <div class="viva-card-a">
+                <b>Reporting:</b> Real-time analytics counters, student present/absent roster, and 1-click export to CSV and Excel (`.xlsx`).
+              </div>
+            </div>
+          </div>
+
+          <h3 style="font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 14px;">2. Normalized ER Schema (2 Relational Tables)</h3>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 18px;">
+              <h4 style="color: var(--accent-cyan); font-size: 14px; margin-bottom: 8px;">TABLE 1: students (Master Entity)</h4>
+              <ul style="list-style: none; font-size: 13px; color: var(--text-muted); line-height: 1.8;">
+                <li>• <code>roll_no TEXT PRIMARY KEY</code> (e.g. CSE-2026-042)</li>
+                <li>• <code>full_name TEXT NOT NULL</code></li>
+                <li>• <code>branch TEXT NOT NULL</code></li>
+                <li>• <code>semester TEXT NOT NULL</code></li>
+                <li>• <code>qr_path TEXT</code></li>
+                <li>• <code>created_at TEXT DEFAULT NOW</code></li>
+              </ul>
+            </div>
+            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-medium); border-radius: var(--radius-md); padding: 18px;">
+              <h4 style="color: var(--accent-emerald); font-size: 14px; margin-bottom: 8px;">TABLE 2: attendance_logs (Transaction Entity)</h4>
+              <ul style="list-style: none; font-size: 13px; color: var(--text-muted); line-height: 1.8;">
+                <li>• <code>log_id INTEGER PRIMARY KEY AUTOINCREMENT</code></li>
+                <li>• <code>roll_no TEXT (FK → students.roll_no)</code></li>
+                <li>• <code>scan_date TEXT NOT NULL</code> (YYYY-MM-DD)</li>
+                <li>• <code>check_in_time TEXT NOT NULL</code> (HH:MM:SS AM/PM)</li>
+                <li>• <code>status TEXT DEFAULT 'Present'</code></li>
+                <li>• <code>entry_type TEXT</code> (Classroom vs Library)</li>
+              </ul>
+            </div>
+          </div>
+
+          <h3 style="font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 14px;">3. Top Viva Questions & Examiner-Ready Answers</h3>
+          
+          <div class="viva-card">
+            <div class="viva-card-q">Q1: How does your system stop a student from scanning their QR code 5 times in a row?</div>
+            <div class="viva-card-a">
+              <b>Answer:</b> We apply a composite uniqueness check in SQL:
+              <code>SELECT * FROM attendance_logs WHERE roll_no = ? AND scan_date = CURRENT_DATE AND entry_type = ?</code>.
+              If a row already exists for that student on that date, the application flags it as a duplicate, plays an audible alert, and displays an <b>"Already Marked Present"</b> notification with their original check-in timestamp instead of inserting a duplicate row.
+            </div>
+          </div>
+
+          <div class="viva-card">
+            <div class="viva-card-q">Q2: Why did you choose SQLite instead of MySQL or MongoDB for this microproject?</div>
+            <div class="viva-card-a">
+              <b>Answer:</b> SQLite is a serverless, ACID-compliant relational database built directly into Python's standard library (<code>sqlite3</code>). It requires zero background server daemon setup, zero configuration, and stores the entire database in a single portable <code>attendance.db</code> file, making it ideal for standalone college lab deployment.
+            </div>
+          </div>
+
+          <div class="viva-card">
+            <div class="viva-card-q">Q3: How does OpenCV recognize a QR code even if the card is slightly tilted?</div>
+            <div class="viva-card-a">
+              <b>Answer:</b> Every QR code contains three large square <b>Finder Patterns</b> in its corners. OpenCV's <code>QRCodeDetector</code> searches for the specific ratio of black-to-white pixels (<b>1:1:3:1:1</b>) within those squares. Once detected, it calculates the geometric perspective transformation (homography matrix) to rectify the tilt before reading the data bits.
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Local Offline-First JavaScript QR Library and Master Application Script -->
+  <script src="/frontend/jsQR.min.js"></script>
+  <script src="/frontend/app.js"></script>
+</body>
+</html>
