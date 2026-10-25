@@ -1,0 +1,11 @@
+import os
+import sys
+
+# Ensure root directory is in sys.path for importing server and modules
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
+from server import app
+
+# Vercel serverless function entrypoint

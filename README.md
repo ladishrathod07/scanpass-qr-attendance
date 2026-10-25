@@ -164,3 +164,13 @@ Smart QR-Based Student Attendance & Library Entry Management System/
 
 ### Bonus Q5: What error correction level is used in your QR generation?
 **Answer:** We configure **Error Correction Level H (High)** using Reed-Solomon algebraic coding. This ensures the QR matrix can be decoded reliably even if up to **30%** of the pass is scratched, smudged, or occluded.
+
+---
+
+## 9. Deploying to Vercel (1-Click Cloud Deployment)
+
+1. Go to [Vercel](https://vercel.com/) and click **"Add New Project"**.
+2. Import your GitHub repository (`scanpass-qr-attendance`).
+3. Leave **Framework Preset** as **Other** (Vercel automatically detects `vercel.json` and Python backend in `api/index.py`).
+4. Click **Deploy**.
+5. Once deployment completes, your live web portal with camera scanner, real-time KPI metrics, student registration, and CSV/Excel downloads is accessible anywhere on the internet!

@@ -5,28 +5,39 @@ Serves the JavaScript Frontend UI and provides full REST API endpoints.
 
 import os
 import io
-import cv2
+import tempfile
 import numpy as np
 import pandas as pd
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
+try:
+    import cv2
+except Exception:
+    cv2 = None
+
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Query
 from fastapi.responses import FileResponse, HTMLResponse, Response, JSONResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 import database as db
 import qr_generator as qrg
 
+IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
+TMP_STATIC_DIR = os.path.join(tempfile.gettempdir(), "static")
 
 # Ensure required directories exist
-os.makedirs(FRONTEND_DIR, exist_ok=True)
-os.makedirs(STATIC_DIR, exist_ok=True)
+if not IS_VERCEL:
+    os.makedirs(FRONTEND_DIR, exist_ok=True)
+    os.makedirs(STATIC_DIR, exist_ok=True)
+else:
+    os.makedirs(TMP_STATIC_DIR, exist_ok=True)
+    os.makedirs(os.path.join(TMP_STATIC_DIR, "qr_codes"), exist_ok=True)
+    os.makedirs(os.path.join(TMP_STATIC_DIR, "id_cards"), exist_ok=True)
 
 # Initialize database
 db.init_db()
@@ -46,9 +57,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static asset folders
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+
+# ----------------- Frontend & Static Routes -----------------
+@app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
+async def serve_index():
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.exists(index_path):
+        with open(index_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse("<h2>Frontend index.html is being prepared...</h2>")
+
+
+@app.get("/frontend/{file_path:path}")
+async def serve_frontend_file(file_path: str):
+    fpath = os.path.join(FRONTEND_DIR, file_path)
+    if os.path.exists(fpath):
+        return FileResponse(fpath)
+    raise HTTPException(status_code=404, detail="Frontend file not found")
+
+
+@app.get("/static/{file_path:path}")
+async def serve_static_file(file_path: str):
+    # Check /tmp/static first (newly generated files in serverless environment)
+    tmp_path = os.path.join(TMP_STATIC_DIR, file_path)
+    if os.path.exists(tmp_path):
+        return FileResponse(tmp_path)
+    
+    # Check project static folder
+    repo_path = os.path.join(STATIC_DIR, file_path)
+    if os.path.exists(repo_path):
+        return FileResponse(repo_path)
+    
+    raise HTTPException(status_code=404, detail="Static asset not found")
 
 
 # ----------------- Request Models -----------------
@@ -62,15 +103,6 @@ class StudentCreate(BaseModel):
 class AttendanceScan(BaseModel):
     roll_no: str
     entry_type: str = "Classroom Attendance"
-
-
-# ----------------- Frontend Route -----------------
-@app.get("/", response_class=HTMLResponse)
-async def serve_index():
-    index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return HTMLResponse("<h2>Frontend index.html is being prepared...</h2>")
 
 
 # ----------------- REST API Endpoints -----------------
@@ -197,6 +229,12 @@ async def decode_image_file(file: UploadFile = File(...)):
     """
     Decodes QR code from an uploaded image using OpenCV QRCodeDetector server-side.
     """
+    if cv2 is None:
+        return {
+            "success": False,
+            "message": "Server-side OpenCV is not available in cloud serverless mode. Image is processed automatically in-browser.",
+            "payload": None
+        }
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
     img_cv = cv2.imdecode(nparr, cv2.IMREAD_COLOR)

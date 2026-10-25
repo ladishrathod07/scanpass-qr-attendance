@@ -8,7 +8,23 @@ import os
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple, Any
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "attendance.db")
+import shutil
+import tempfile
+
+IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+DEFAULT_DIR = os.path.dirname(os.path.abspath(__file__))
+
+if IS_VERCEL:
+    TMP_DIR = tempfile.gettempdir()
+    DB_PATH = os.path.join(TMP_DIR, "attendance.db")
+    repo_db = os.path.join(DEFAULT_DIR, "attendance.db")
+    if os.path.exists(repo_db) and not os.path.exists(DB_PATH):
+        try:
+            shutil.copy2(repo_db, DB_PATH)
+        except Exception:
+            pass
+else:
+    DB_PATH = os.path.join(DEFAULT_DIR, "attendance.db")
 
 
 def get_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
@@ -60,6 +76,18 @@ def init_db(db_path: str = DB_PATH) -> None:
 
     conn.commit()
     conn.close()
+
+    # Automatically populate sample students if table is empty
+    try:
+        conn = get_connection(db_path)
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM students")
+        count = cur.fetchone()[0]
+        conn.close()
+        if count == 0:
+            seed_sample_students(db_path)
+    except Exception:
+        pass
 
 
 def add_student(

@@ -6,12 +6,20 @@ Generates high-contrast 2D Quick Response matrices and printable Student ID Card
 import os
 import io
 import qrcode
+import tempfile
 from PIL import Image, ImageDraw, ImageFont
 from typing import Optional, Tuple
 
+IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-QR_DIR = os.path.join(BASE_DIR, "static", "qr_codes")
-CARD_DIR = os.path.join(BASE_DIR, "static", "id_cards")
+
+if IS_VERCEL:
+    STATIC_DIR = os.path.join(tempfile.gettempdir(), "static")
+else:
+    STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+QR_DIR = os.path.join(STATIC_DIR, "qr_codes")
+CARD_DIR = os.path.join(STATIC_DIR, "id_cards")
 
 os.makedirs(QR_DIR, exist_ok=True)
 os.makedirs(CARD_DIR, exist_ok=True)
